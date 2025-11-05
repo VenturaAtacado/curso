@@ -32,6 +32,13 @@
     </form>
 
     <hr>
+    
+    {% if analysis %}
+        <h2>📊 Análise de Resultados:</h2>
+        <pre style="background-color: #eee; padding: 10px; border: 1px dashed #666;">{{ analysis }}</pre>
+        <hr>
+    {% endif %}
+
 
     {% if videos %}
         <h2>Resultados para "{{ query }}":</h2>
