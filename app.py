@@ -1,110 +1,116 @@
+import requests
+from flask import Flask, render_template, request, jsonify
 import os
-from flask import Flask, render_template, request
-from googleapiclient.discovery import build
-import isodate
+import datetime
 
 app = Flask(__name__)
 
-YOUTUBE_API_KEY = "SUA_CHAVE_DE_API_DO_YOUTUBE" 
-YOUTUBE_API_SERVICE_NAME = "youtube"
-YOUTUBE_API_VERSION = "v3"
+BASE_URL = "https://api.open-meteo.com/v1/forecast"
+NOME_ARQUIVO_COBOL = "dados_clima.txt" 
 
-def get_video_durations(video_ids):
-    youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, 
-                    developerKey=YOUTUBE_API_KEY)
+def obter_clima(latitude, longitude):
+    params = {
+        "latitude": latitude,
+        "longitude": longitude,
+        "current_weather": "true",
+        "timezone": "auto"
+    }
     
-    # Faz uma segunda chamada de API para obter os detalhes do conteúdo (incluindo duração)
-    video_response = youtube.videos().list(
-        id=",".join(video_ids),
-        part="contentDetails"
-    ).execute()
+    try:
+        lat = float(latitude)
+        lon = float(longitude)
+    except ValueError:
+        return None, "Dados Inválidos"
 
-    durations = {}
-    for video_result in video_response.get("items", []):
-        video_id = video_result["id"]
-        # A duração vem no formato ISO 8601 (ex: PT5M30S)
-        iso_duration = video_result["contentDetails"]["duration"]
-        
-        # Converte a duração ISO 8601 para segundos
-        duration_timedelta = isodate.parse_duration(iso_duration)
-        durations[video_id] = int(duration_timedelta.total_seconds())
+    try:
+        response = requests.get(BASE_URL, params=params)
+        response.raise_for_status()
+        data = response.json()
 
-    return durations
+        temperatura = data.get("current_weather", {}).get("temperature")
+        unidade_temp = data.get("current_weather_units", {}).get("temperature")
 
-def youtube_search(query):
-    youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, 
-                    developerKey=YOUTUBE_API_KEY)
+        if temperatura is not None and isinstance(temperatura, (int, float)):
+            return temperatura, unidade_temp
+        else:
+            return None, "API Invalida"
 
-    search_response = youtube.search().list(
-        q=query,
-        part="id,snippet",
-        maxResults=10,
-        type="video"
-    ).execute()
+    except requests.exceptions.RequestException as e:
+        return None, "Conexão"
+    except Exception as e:
+        return None, "Processamento"
 
-    video_ids = []
-    videos_list = []
+def mensagens(temperatura_valor, unidade):
+    if temperatura_valor is None:
+        return f"Não foi possível obter a temperatura ({unidade})."
+
+    temp_formatada = f"{temperatura_valor} {unidade}"
+
+    if temperatura_valor < 25:
+        return f"Tá ficando **frio** cuidado porque está {temp_formatada}"
+    elif temperatura_valor > 28:
+        return f"**Calorzão** né, tá {temp_formatada}"
+    else:
+        return f"O clima está agradável, está {temp_formatada}"
+
+def salvar_para_cobol(latitude, longitude, temperatura_valor, unidade):
+    lat_str = f"{latitude:.6f}".ljust(10)[:10] 
+    lon_str = f"{longitude:.6f}".ljust(10)[:10] 
+    temp_str = str(temperatura_valor).rjust(5) if temperatura_valor is not None else " N/A "
+    unidade_str = str(unidade).ljust(5)[:5]
+    timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
     
-    for search_result in search_response.get("items", []):
-        if search_result["id"]["kind"] == "youtube#video":
-            video_id = search_result["id"]["videoId"]
-            video_ids.append(video_id)
-            
-            videos_list.append({
-                "id": video_id,
-                "title": search_result["snippet"]["title"],
-                "url": f"https://www.youtube.com/watch?v={video_id}",
-                "thumbnail": search_result["snippet"]["thumbnails"]["default"]["url"],
-                "duration_seconds": 0 
-            })
-            
-    # Obtém as durações em uma única chamada de API (otimização)
-    durations_map = get_video_durations(video_ids)
-    
-    # Atualiza a lista de vídeos com as durações
-    for video in videos_list:
-        video["duration_seconds"] = durations_map.get(video["id"], 0)
-            
-    return videos_list
+    linha_dados = f"{timestamp}{lat_str}{lon_str}{temp_str}{unidade_str}\n"
 
-def python_analysis(videos):
-    total_seconds = sum(video['duration_seconds'] for video in videos)
-    num_videos = len(videos)
+    try:
+        with open(NOME_ARQUIVO_COBOL, "a") as f:
+            f.write(linha_dados)
+        return True
+    except Exception as e:
+        return False
 
-    total_minutes = total_seconds // 60
-    remaining_seconds = total_seconds % 60
-
-    analysis_result = (
-        "========================================\n"
-        "ANALISE DE RESULTADOS\n"
-        "========================================\n"
-        f"1. Quantidade de Vídeos Encontrados: {num_videos:05d}\n"
-        f"2. Minutos Totais de Vídeo:          {total_minutes:07d} minutos\n"
-        f"   (e {remaining_seconds:02d} segundos restantes)\n"
-        f"3. Segundos Totais Brutos:           {total_seconds:010d}\n"
-        "========================================"
-    )
-    return analysis_result
-
-@app.route("/", methods=["GET", "POST"])
+@app.route("/", methods=["GET"])
 def index():
-    videos = []
-    search_query = ""
-    analysis_text = ""
+    return render_template("index.html", resultado=None)
 
-    if request.method == "POST":
-        search_query = request.form.get("search_term", "")
-        if search_query:
-            videos = youtube_search(search_query)
-            
-            if videos:
-                analysis_text = python_analysis(videos)
+@app.route("/clima", methods=["POST"])
+def obter_e_processar_clima():
+    latitude = request.form.get("latitude")
+    longitude = request.form.get("longitude")
+    
+    if not latitude or not longitude:
+        return render_template("index.html", 
+                               resultado="Erro: Por favor, forneça a latitude e a longitude.", 
+                               classe_alerta="alert-danger")
 
-    return render_template("index.html", videos=videos, query=search_query, analysis=analysis_text)
+    try:
+        lat_float = float(latitude)
+        lon_float = float(longitude)
+    except ValueError:
+        return render_template("index.html", 
+                               resultado="Erro: Latitude e Longitude devem ser números válidos.", 
+                               classe_alerta="alert-danger")
+    
+    temp_valor, temp_unidade = obter_clima(latitude=lat_float, longitude=lon_float)
+    
+    mensagem_final = mensagens(temp_valor, temp_unidade)
+    
+    salvamento_ok = salvar_para_cobol(lat_float, lon_float, temp_valor, temp_unidade)
+    
+    if "frio" in mensagem_final.lower():
+        classe_alerta = "alert-info"
+    elif "calorzão" in mensagem_final.lower():
+        classe_alerta = "alert-warning"
+    elif temp_valor is None:
+        classe_alerta = "alert-danger"
+    else:
+        classe_alerta = "alert-success"
+        
+    
+    return render_template("index.html", 
+                           resultado=mensagem_final, 
+                           classe_alerta=classe_alerta,
+                           salvamento=f"💾 Arquivo de dados para COBOL {'SALVO' if salvamento_ok else 'COM ERRO'} ({NOME_ARQUIVO_COBOL}).")
 
 if __name__ == "__main__":
-    if YOUTUBE_API_KEY == "SUA_CHAVE_DE_API_DO_YOUTUBE":
-        print("ERRO: Por favor, substitua 'SUA_CHAVE_DE_API_DO_YOUTUBE' pela sua chave de API real no arquivo app.py.")
-    else:
-        app.run(debug=True)
-        
+    app.run(debug=True)

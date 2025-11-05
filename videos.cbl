@@ -1,113 +1,117 @@
 IDENTIFICATION DIVISION.
-       PROGRAM-ID. ANALISA-VIDEOS.
-
+       PROGRAM-ID. PROC-CLIMA.
        ENVIRONMENT DIVISION.
        INPUT-OUTPUT SECTION.
        FILE-CONTROL.
-      * Define o arquivo de ENTRADA (dados dos videos)
-           SELECT DADOS-IN ASSIGN TO 'RESULTADOS.TXT'
+           SELECT DADOS-ENTRADA ASSIGN TO 'dados_clima.txt'
                ORGANIZATION IS LINE SEQUENTIAL.
-      * Define o arquivo de SAIDA (o resultado da analise)
-           SELECT DADOS-OUT ASSIGN TO 'ANALISE.TXT'
+           SELECT RELATORIO-SAIDA ASSIGN TO 'resultado_processado.txt'
                ORGANIZATION IS LINE SEQUENTIAL.
-
+       
        DATA DIVISION.
        FILE SECTION.
-      * Estrutura de cada registro lido do arquivo de ENTRADA
-       FD DADOS-IN.
-       01 DADOS-REGISTRO.
-           05 DADOS-DURACAO-SEGUNDOS   PIC 9(06).
-           05 DADOS-TITULO             PIC X(100).
-
-       FD DADOS-OUT.
-       01 DADOS-ANALISE                PIC X(200).
-
+       
+       FD  DADOS-ENTRADA.
+       01 REG-ENTRADA.
+           05  IN-TIMESTAMP       PIC X(14).
+           05  IN-LATITUDE        PIC X(10).
+           05  IN-LONGITUDE       PIC X(10).
+           05  IN-TEMPERATURA-RAW PIC X(05).
+           05  IN-UNIDADE         PIC X(05).
+      
+       FD  RELATORIO-SAIDA.
+       01 REG-SAIDA              PIC X(80).
+       
        WORKING-STORAGE SECTION.
+       01 WS-VARIAVEIS.
+           05  WS-FIM-ARQUIVO     PIC X(01) VALUE 'N'.
+               88  FIM-ENTRADA              VALUE 'S'.
+           05  WS-STATUS-TEMP     PIC 9(02).
+      
+       01 WS-DADOS-TEMP.
+           05  WS-TEMPERATURA-NUM PIC S9(03)V99.  
+      
+       01 WS-REGISTRO-SAIDA.
+           05  WS-DATA-PROCESS    PIC X(10).
+           05  FILLER             PIC X(03) VALUE SPACES.
+           05  WS-COORD-DISPLAY   PIC X(20).
+           05  FILLER             PIC X(03) VALUE SPACES.
+           05  WS-CLIMA-MSG       PIC X(44).
 
-      * Variáveis para cálculos e totais
-       01 WS-TOTAIS.
-           05 WS-QUANTIDADE-VIDEOS   PIC 9(05) VALUE ZEROS.
-           05 WS-DURACAO-SEGUNDOS-TOTAL PIC 9(10) VALUE ZEROS.
-           05 WS-DURACAO-MINUTOS-TOTAL  PIC 9(07) VALUE ZEROS.
-           05 WS-DURACAO-RESTO-SEGUNDOS PIC 9(02) VALUE ZEROS.
-           05 WS-FIM-DE-ARQUIVO-FLAG    PIC X(01) VALUE 'N'.
-              88 FIM-DE-ARQUIVO                  VALUE 'S'.
-
-      * Variáveis de exibição (para formatar a saída)
-       01 WS-LINHA-1.
-           05 FILLER         PIC X(40) VALUE 
-               'Quantidade de Videos Encontrados: '.
-           05 WS-DISPLAY-QTD PIC ZZZZ9.
-
-       01 WS-LINHA-2.
-           05 FILLER         PIC X(40) VALUE 
-               'Minutos Totais de Video:          '.
-           05 WS-DISPLAY-MIN PIC ZZZZZZ9.
-           05 FILLER         PIC X(10) VALUE ' minutos'.
-
-       01 WS-LINHA-3.
-           05 FILLER         PIC X(40) VALUE 
-               'Segundos Totais:                  '.
-           05 WS-DISPLAY-SEG PIC ZZZZZZZZZ9.
-           
+       
        PROCEDURE DIVISION.
-
-       0000-PRINCIPAL.
-           PERFORM 1000-INICIALIZA.
-           PERFORM 2000-PROCESSA-ARQUIVO
-               UNTIL FIM-DE-ARQUIVO.
-           PERFORM 3000-CALCULA-TOTAIS.
-           PERFORM 4000-GRAVA-SAIDA.
-           PERFORM 9000-FINALIZA.
+       000-PRINCIPAL.
+           PERFORM 100-ABRIR-ARQUIVOS.
+           PERFORM 200-LER-PRIMEIRO.
+      
+           PERFORM 300-PROCESSAR-LOOP
+               UNTIL FIM-ENTRADA.
+      
+           PERFORM 900-FECHAR-ARQUIVOS.
            STOP RUN.
-
-       1000-INICIALIZA.
-           OPEN INPUT DADOS-IN
-           OPEN OUTPUT DADOS-OUT.
-           READ DADOS-IN
-               AT END MOVE 'S' TO WS-FIM-DE-ARQUIVO-FLAG
+       
+       100-ABRIR-ARQUIVOS.
+           OPEN INPUT DADOS-ENTRADA
+           OPEN OUTPUT RELATORIO-SAIDA.
+           
+           MOVE "DATA       COORDENADAS          MENSAGEM CLIMA" 
+               TO REG-SAIDA
+           WRITE REG-SAIDA.
+           MOVE ALL '-' TO REG-SAIDA
+           WRITE REG-SAIDA.
+       
+       200-LER-PRIMEIRO.
+           READ DADOS-ENTRADA
+               AT END SET FIM-ENTRADA TO TRUE
            END-READ.
 
-       2000-PROCESSA-ARQUIVO.
-           IF NOT FIM-DE-ARQUIVO
-               ADD 1 TO WS-QUANTIDADE-VIDEOS
-               ADD DADOS-DURACAO-SEGUNDOS TO WS-DURACAO-SEGUNDOS-TOTAL
-               READ DADOS-IN
-                   AT END MOVE 'S' TO WS-FIM-DE-ARQUIVO-FLAG
-               END-READ
-           END-IF.
+       300-PROCESSAR-LOOP.
+           PERFORM 310-PROCESSAR-REGISTRO.
+           PERFORM 320-LER-PROXIMO.
 
-       3000-CALCULA-TOTAIS.
-           IF WS-DURACAO-SEGUNDOS-TOTAL IS NOT EQUAL TO ZEROS
-               DIVIDE WS-DURACAO-SEGUNDOS-TOTAL BY 60
-                   GIVING WS-DURACAO-MINUTOS-TOTAL
-                   REMAINDER WS-DURACAO-RESTO-SEGUNDOS
-           END-IF.
+       310-PROCESSAR-REGISTRO.
+           INITIALIZE WS-REGISTRO-SAIDA.
 
-       4000-GRAVA-SAIDA.
-      * Move os totais calculados para as variaveis de exibicao formatadas
-           MOVE WS-QUANTIDADE-VIDEOS TO WS-DISPLAY-QTD
-           MOVE WS-DURACAO-MINUTOS-TOTAL TO WS-DISPLAY-MIN
-           MOVE WS-DURACAO-SEGUNDOS-TOTAL TO WS-DISPLAY-SEG
-
-      * Grava as linhas no arquivo de SAIDA
-           MOVE WS-LINHA-1 TO DADOS-ANALISE
-           WRITE DADOS-ANALISE
+           UNSTRING IN-TEMPERATURA-RAW DELIMITED BY ALL ' '
+               INTO WS-TEMPERATURA-NUM
+               ON OVERFLOW DISPLAY 'ERRO NA CONVERSAO DE TEMPERATURA'
+           END-UNSTRING.
            
-           MOVE WS-LINHA-2 TO DADOS-ANALISE
-           WRITE DADOS-ANALISE
+           EVALUATE TRUE
+               WHEN WS-TEMPERATURA-NUM < 25
+                   MOVE 'TA FICANDO FRIO' TO WS-CLIMA-MSG
+               WHEN WS-TEMPERATURA-NUM > 28
+                   MOVE 'CALORZAO' TO WS-CLIMA-MSG
+               WHEN OTHER
+                   MOVE 'CLIMA AGRADAVEL' TO WS-CLIMA-MSG
+           END-EVALUATE.
 
-           MOVE WS-LINHA-3 TO DADOS-ANALISE
-           WRITE DADOS-ANALISE
+           MOVE IN-TIMESTAMP(1:8) TO WS-DATA-PROCESS. 
+           STRING IN-LATITUDE DELIMITED BY SIZE
+                  '/' DELIMITED BY SIZE
+                  IN-LONGITUDE DELIMITED BY SIZE
+                  INTO WS-COORD-DISPLAY
+           END-STRING.
 
-      * Adiciona o resto dos segundos
-           MOVE SPACES TO DADOS-ANALISE
-           STRING "   (" WS-DURACAO-RESTO-SEGUNDOS " segundos restantes)" 
-               DELIMITED BY SIZE INTO DADOS-ANALISE
-           END-STRING
-           WRITE DADOS-ANALISE.
-
-       9000-FINALIZA.
-           CLOSE DADOS-IN
-           CLOSE DADOS-OUT.
+           STRING WS-DATA-PROCESS DELIMITED BY SIZE
+                  SPACES DELIMITED BY SIZE
+                  WS-COORD-DISPLAY DELIMITED BY SIZE
+                  SPACES DELIMITED BY SIZE
+                  WS-CLIMA-MSG DELIMITED BY SIZE
+                  ' - ' DELIMITED BY SIZE
+                  IN-TEMPERATURA-RAW DELIMITED BY SIZE
+                  IN-UNIDADE DELIMITED BY SIZE
+                  INTO REG-SAIDA
+           END-STRING.
            
+           WRITE REG-SAIDA.
+
+       320-LER-PROXIMO.
+           READ DADOS-ENTRADA
+               AT END SET FIM-ENTRADA TO TRUE
+           END-READ.
+
+       900-FECHAR-ARQUIVOS.
+           CLOSE DADOS-ENTRADA
+                 RELATORIO-SAIDA.
+       END PROGRAM PROC-CLIMA.
