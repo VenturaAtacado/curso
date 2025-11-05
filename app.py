@@ -113,4 +113,4 @@ def obter_e_processar_clima():
                            salvamento=f"💾 Arquivo de dados para COBOL {'SALVO' if salvamento_ok else 'COM ERRO'} ({NOME_ARQUIVO_COBOL}).")
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=port, debug=os.environ.get('DEBUG', 'False').lower() == 'true')
