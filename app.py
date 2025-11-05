@@ -107,3 +107,4 @@ if __name__ == "__main__":
         print("ERRO: Por favor, substitua 'SUA_CHAVE_DE_API_DO_YOUTUBE' pela sua chave de API real no arquivo app.py.")
     else:
         app.run(debug=True)
+        
