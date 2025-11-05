@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Buscador de Vídeos do YouTube com Flask</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .video-item { 
+            border: 1px solid #ccc; 
+            padding: 10px; 
+            margin-bottom: 10px; 
+            display: flex;
+            align-items: center;
+        }
+        .video-item img {
+            margin-right: 15px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔎 Buscador de Vídeos do YouTube</h1>
+
+    <form method="POST" action="/">
+        <input 
+            type="text" 
+            name="search_term" 
+            placeholder="Digite o que deseja buscar..." 
+            value="{{ query }}" 
+            size="50"
+            required>
+        <button type="submit">Buscar</button>
+    </form>
+
+    <hr>
+
+    {% if videos %}
+        <h2>Resultados para "{{ query }}":</h2>
+        {% for video in videos %}
+            <div class="video-item">
+                <a href="{{ video.url }}" target="_blank">
+                    <img src="{{ video.thumbnail }}" alt="Thumbnail do vídeo" width="120">
+                </a>
+                <div>
+                    <h3><a href="{{ video.url }}" target="_blank">{{ video.title }}</a></h3>
+                    <p>Link: <a href="{{ video.url }}" target="_blank">{{ video.url }}</a></p>
+                </div>
+            </div>
+        {% endfor %}
+    {% elif query %}
+        <p>Nenhum vídeo encontrado para "{{ query }}".</p>
+    {% endif %}
+
+</body>
+</html>
