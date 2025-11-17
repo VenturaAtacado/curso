@@ -20,7 +20,7 @@
         <h1>Municípios do Brasil (IBGE) 🗺️</h1>
         <div id="loading">Carregando dados... Isso pode levar alguns segundos, a requisição é grande.</div>
         <div id="municipios-container">
-            </div>
+        </div>
     </div>
 
     <script>
@@ -28,13 +28,12 @@
             const container = document.getElementById('municipios-container');
             const loading = document.getElementById('loading');
 
-            // Função para buscar dados da API Flask
             async function carregarMunicipios() {
                 try {
                     const response = await fetch('/api/municipios');
                     const dados = await response.json();
                     
-                    loading.style.display = 'none'; // Esconde a mensagem de carregamento
+                    loading.style.display = 'none';
                     renderizarDados(dados);
 
                 } catch (error) {
@@ -43,15 +42,12 @@
                 }
             }
 
-            // Função para injetar os dados no HTML
             function renderizarDados(dados) {
-                // Ordena as UFs (chaves do objeto) para garantir ordem alfabética
                 const ufs_ordenadas = Object.keys(dados).sort();
 
                 for (const uf of ufs_ordenadas) {
                     const municipios = dados[uf];
                     
-                    // Cria a caixa do Estado
                     const estadoBox = document.createElement('div');
                     estadoBox.className = 'estado-box';
                     
@@ -59,7 +55,6 @@
                     titulo.textContent = `Estado: ${uf}`;
                     estadoBox.appendChild(titulo);
                     
-                    // Cria a lista de municípios
                     const lista = document.createElement('ul');
                     lista.className = 'municipios-lista';
                     

@@ -15,6 +15,7 @@ def busca_e_organiza_todos_municipios():
             nome_municipio = municipio.get('nome')
             sigla_uf = None
             
+            # Navegação segura para obter a UF
             microrregiao = municipio.get('microrregiao')
             if microrregiao:
                 mesorregiao = microrregiao.get('mesorregiao')
@@ -45,8 +46,3 @@ def index():
 def api_municipios():
     dados = busca_e_organiza_todos_municipios()
     return jsonify(dados)
-
-if __name__ == '__main__':
-    # Para uso em ambiente de desenvolvimento. 
-    # Mude para gunicorn ou similar em produção!
-    app.run(debug=True)
