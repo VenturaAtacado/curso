@@ -15,7 +15,7 @@ def busca_e_organiza_todos_municipios():
             nome_municipio = municipio.get('nome')
             sigla_uf = None
             
-            # Navegação segura para obter a UF
+            # Navegação segura para obter a UF, tratando valores 'None'
             microrregiao = municipio.get('microrregiao')
             if microrregiao:
                 mesorregiao = microrregiao.get('mesorregiao')
@@ -32,8 +32,9 @@ def busca_e_organiza_todos_municipios():
         
         # Ordena municípios dentro de cada estado
         dados_finais = {}
-        for uf, municipios in estados_municipios.items():
-            dados_finais[uf] = sorted(municipios)
+        # Ordena as chaves (UFs) e depois os municípios dentro
+        for uf in sorted(estados_municipios.keys()):
+            dados_finais[uf] = sorted(estados_municipios[uf])
             
         return dados_finais
     return {}
