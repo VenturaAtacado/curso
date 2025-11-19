@@ -8,6 +8,22 @@
         body { font-family: sans-serif; margin: 20px; background-color: #f4f4f9; }
         .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         h1 { text-align: center; color: #333; }
+        .download-btn {
+            display: block;
+            width: 250px;
+            margin: 15px auto;
+            padding: 10px 20px;
+            text-align: center;
+            background-color: #28a745;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        .download-btn:hover {
+            background-color: #218838;
+        }
         .estado-box { margin-top: 20px; border: 1px solid #ccc; padding: 15px; border-radius: 6px; background-color: #fff; }
         .estado-box h2 { margin-top: 0; color: #007bff; border-bottom: 2px solid #007bff; padding-bottom: 5px; }
         .municipios-lista { columns: 2; list-style-type: none; padding: 0; }
@@ -19,6 +35,10 @@
     <div class="container">
         <h1>Municípios do Brasil (IBGE) 🗺️</h1>
         <p>Dados carregados de um arquivo CSV gerado no backend.</p>
+
+        <a href="/static/municipios.csv" class="download-btn" download="municipios_ibge.csv">
+            Baixar CSV Completo
+        </a>
         <div id="loading">Gerando e carregando arquivo CSV... Isso pode levar alguns segundos.</div>
         <div id="municipios-container">
         </div>
