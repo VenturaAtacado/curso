@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Municípios do Brasil (IBGE)</title>
+    <title>Municípios do Brasil (IBGE) - CSV</title>
     <style>
         body { font-family: sans-serif; margin: 20px; background-color: #f4f4f9; }
         .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -18,7 +18,8 @@
 <body>
     <div class="container">
         <h1>Municípios do Brasil (IBGE) 🗺️</h1>
-        <div id="loading">Carregando dados... Isso pode levar alguns segundos, a requisição é grande.</div>
+        <p>Dados carregados de um arquivo CSV gerado no backend.</p>
+        <div id="loading">Gerando e carregando arquivo CSV... Isso pode levar alguns segundos.</div>
         <div id="municipios-container">
         </div>
     </div>
@@ -30,17 +31,50 @@
 
             async function carregarMunicipios() {
                 try {
-                    const response = await fetch('/api/municipios');
-                    const dados = await response.json();
+                    const response = await fetch('/static/municipios.csv');
+                    
+                    if (!response.ok) {
+                        throw new Error(`Erro de rede: ${response.statusText}`);
+                    }
+
+                    const csvText = await response.text();
+                    
+                    const dadosOrganizados = parseCsv(csvText);
                     
                     loading.style.display = 'none';
-                    renderizarDados(dados);
+                    renderizarDados(dadosOrganizados);
 
                 } catch (error) {
-                    loading.textContent = 'Erro ao carregar os dados: ' + error.message;
-                    console.error('Erro ao buscar municípios:', error);
+                    loading.textContent = 'Erro ao carregar ou processar o CSV: ' + error.message;
+                    console.error('Erro ao buscar ou analisar o CSV:', error);
                 }
             }
+            
+            function parseCsv(csv) {
+                const linhas = csv.trim().split('\n');
+                linhas.shift(); 
+                
+                const estadosMunicipios = {};
+
+                linhas.forEach(linha => {
+                    const [uf, municipio] = linha.split(';');
+
+                    if (uf && municipio) {
+                        if (!estadosMunicipios[uf]) {
+                            estadosMunicipios[uf] = [];
+                        }
+                        estadosMunicipios[uf].push(municipio.trim());
+                    }
+                });
+
+                const dadosFinais = {};
+                Object.keys(estadosMunicipios).sort().forEach(uf => {
+                    dadosFinais[uf] = estadosMunicipios[uf].sort();
+                });
+
+                return dadosFinais;
+            }
+
 
             function renderizarDados(dados) {
                 const ufs_ordenadas = Object.keys(dados).sort();
@@ -52,7 +86,7 @@
                     estadoBox.className = 'estado-box';
                     
                     const titulo = document.createElement('h2');
-                    titulo.textContent = `Estado: ${uf}`;
+                    titulo.textContent = `Estado: ${uf} (${municipios.length} municípios)`;
                     estadoBox.appendChild(titulo);
                     
                     const lista = document.createElement('ul');
@@ -74,4 +108,3 @@
     </script>
 </body>
 </html>
-
