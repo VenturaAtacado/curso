@@ -11,7 +11,7 @@
         .download-btn {
             display: block;
             width: 250px;
-            margin: 15px auto;
+            margin: 15px auto 25px;
             padding: 10px 20px;
             text-align: center;
             background-color: #28a745;
@@ -23,6 +23,33 @@
         }
         .download-btn:hover {
             background-color: #218838;
+        }
+        .filter-container {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .filter-container input[type="text"] {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 100px;
+            text-transform: uppercase;
+        }
+        .filter-container button {
+            padding: 8px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .filter-container button:hover {
+            background-color: #0056b3;
         }
         .estado-box { margin-top: 20px; border: 1px solid #ccc; padding: 15px; border-radius: 6px; background-color: #fff; }
         .estado-box h2 { margin-top: 0; color: #007bff; border-bottom: 2px solid #007bff; padding-bottom: 5px; }
@@ -39,6 +66,14 @@
         <a href="/static/municipios.csv" class="download-btn" download="municipios_ibge.csv">
             Baixar CSV Completo
         </a>
+
+        <div class="filter-container">
+            <label for="filtro-uf">Filtrar por UF (Sigla):</label>
+            <input type="text" id="filtro-uf" maxlength="2" placeholder="Ex: SP">
+            <button id="aplicar-filtro">Aplicar Filtro</button>
+            <button id="limpar-filtro">Limpar Filtro</button>
+        </div>
+
         <div id="loading">Gerando e carregando arquivo CSV... Isso pode levar alguns segundos.</div>
         <div id="municipios-container">
         </div>
@@ -48,6 +83,10 @@
         document.addEventListener('DOMContentLoaded', () => {
             const container = document.getElementById('municipios-container');
             const loading = document.getElementById('loading');
+            const filtroInput = document.getElementById('filtro-uf');
+            const aplicarFiltroBtn = document.getElementById('aplicar-filtro');
+            const limparFiltroBtn = document.getElementById('limpar-filtro');
+            let todosOsDados = {};
 
             async function carregarMunicipios() {
                 try {
@@ -59,10 +98,10 @@
 
                     const csvText = await response.text();
                     
-                    const dadosOrganizados = parseCsv(csvText);
+                    todosOsDados = parseCsv(csvText);
                     
                     loading.style.display = 'none';
-                    renderizarDados(dadosOrganizados);
+                    renderizarDados(todosOsDados);
 
                 } catch (error) {
                     loading.textContent = 'Erro ao carregar ou processar o CSV: ' + error.message;
@@ -97,6 +136,8 @@
 
 
             function renderizarDados(dados) {
+                container.innerHTML = ''; 
+                
                 const ufs_ordenadas = Object.keys(dados).sort();
 
                 for (const uf of ufs_ordenadas) {
@@ -104,6 +145,7 @@
                     
                     const estadoBox = document.createElement('div');
                     estadoBox.className = 'estado-box';
+                    estadoBox.setAttribute('data-uf', uf); 
                     
                     const titulo = document.createElement('h2');
                     titulo.textContent = `Estado: ${uf} (${municipios.length} municípios)`;
@@ -122,6 +164,42 @@
                     container.appendChild(estadoBox);
                 }
             }
+            
+            function filtrarPorUF() {
+                const filtro = filtroInput.value.trim().toUpperCase();
+                
+                const boxes = document.querySelectorAll('.estado-box');
+
+                if (filtro === '') {
+                    boxes.forEach(box => {
+                        box.style.display = 'block';
+                    });
+                    return;
+                }
+
+                boxes.forEach(box => {
+                    const ufBox = box.getAttribute('data-uf');
+                    if (ufBox === filtro) {
+                        box.style.display = 'block';
+                    } else {
+                        box.style.display = 'none';
+                    }
+                });
+            }
+
+            function limparFiltro() {
+                filtroInput.value = '';
+                filtrarPorUF();
+            }
+            
+            aplicarFiltroBtn.addEventListener('click', filtrarPorUF);
+            limparFiltroBtn.addEventListener('click', limparFiltro);
+            
+            filtroInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    filtrarPorUF();
+                }
+            });
 
             carregarMunicipios();
         });
